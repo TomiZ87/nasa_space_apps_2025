@@ -37,13 +37,13 @@ export class InfraStack extends cdk.Stack {
     /************************************************************/
 
     const queryTempoAndPandora = new lambda.Function(this, "QueryTempoAndPandora", {
-      runtime: lambda.Runtime.NODEJS_LATEST,
+      runtime: lambda.Runtime.PYTHON_3_12,
       handler: 'index.handler',
       code: lambda.Code.fromAsset('./lambda/queryTempoAndPandora'),
     });
     
     const computeAqi = new lambda.Function(this, "ComputeAqi", {
-      runtime: lambda.Runtime.NODEJS_LATEST,
+      runtime: lambda.Runtime.PYTHON_3_12,
       handler: 'index.handler',
       code: lambda.Code.fromAsset('./lambda/computeAqi'),
       environment: {
