@@ -273,16 +273,16 @@ def read_TEMPO_NO2_L2(fn):
     If one requested variables cannot be read, all returned variables are zeroed
     """
 
-    #var_name = "vertical_column_stratosphere"
+    var_name = "vertical_column_stratosphere"
 
     try:
         with nc.Dataset(fn) as ds:
             prod = ds.groups["product"]  # this opens group product, /product, as prod
 
             # this reads variable vertical_column_stratosphere from prod (group product, /product)
-            # var = prod.variables[var_name]
-            # strat_NO2_column = np.array(var)
-            # fv_strat_NO2 = var.getncattr("_FillValue")
+            var = prod.variables[var_name]
+            strat_NO2_column = np.array(var)
+            fv_strat_NO2 = var.getncattr("_FillValue")
 
             # this reads variable 'vertical_column_troposphere' from prod (group product, /product)
             var = prod.variables["vertical_column_troposphere"]
@@ -329,8 +329,8 @@ def read_TEMPO_NO2_L2(fn):
         lon,
         fv_geo,
         time,
-        #strat_NO2_column,
-        #fv_strat_NO2,
+        strat_NO2_column,
+        fv_strat_NO2,
         trop_NO2_column,
         fv_trop_NO2,
         trop_NO2_column_unc,
@@ -344,8 +344,8 @@ def read_TEMPO_NO2_L2(fn):
         lon,
         fv_geo,
         time,
-        #strat_NO2_column,
-        #fv_strat_NO2,
+        strat_NO2_column,
+        fv_strat_NO2,
         trop_NO2_column,
         fv_trop_NO2,
         trop_NO2_column_unc,
@@ -354,112 +354,6 @@ def read_TEMPO_NO2_L2(fn):
         QF,
         fv_QF,
     )
-
-
-# Smooth Pandora retievals and interplate them into other time series times
-# Pandora timeseries has significantly more data points then TEMPO and DSCOVR. It is also very noisy.
-# To make comparison easier, Pandora timeseries is interpolated to the moments of TEMPO and DSCOVR observations.
-
-# Interpolation is performed by the function defined below with the help of Gaussian smooting as follow:
-# x_int(t) = SUM(x_p(t_i)*wt(t_i, t)),
-#
-# wt(t_i, t) = exp(-(t - t_i)^2/(2 * sigma^2))/SUM(exp(-(t - t_i)^2/(2 * sigma^2))),
-#
-# where sums are taken over times t_i falling into time interval (t-dt_max, t+dt_max).
-#
-# Parameters dt_max and sigma can be chosen by the user.
-def gauss_interpolation(timeseries, new_times):
-    #
-    # function gauss_interpolation takes 2D array timeseries with function
-    # to be interpolated and 1D array new_times containing times to which
-    # the function is to be interpolated
-    # arguments:
-    #     timeseries - array with at least 2 columns,
-    #                  1st column - times, 2nd (3rd, ...) column(s) - function to be interpolated
-    #     new_times  - 1D array of times to which the function(s) to be interpolated
-    #
-    # parameters
-    #  dt_max = 0.0007 # 60.48 sec expressed in days
-    #  sigma = 0.000175 # 15.12 sec expressed in days
-
-    dt_max = 0.0007  # 60.48 sec expressed in days
-    sigma = 0.000175  # 15.12 sec expressed in days
-
-    nnt = len(new_times)
-    (nt, nfun) = timeseries.shape
-
-    timeseries_smooth = np.empty([0, nfun])
-    data_subset = np.empty(nnt, dtype=object)
-    cnt = 0
-    for new_time in new_times:
-        llim = new_time - dt_max
-        ulim = new_time + dt_max
-
-        timeseries_subset = timeseries[((timeseries[:, 0] < ulim) & (timeseries[:, 0] > llim))]
-        if len(timeseries_subset) < 1:
-            continue
-        t_delta = timeseries_subset[:, 0] - new_time
-        wt = np.exp(-(t_delta**2) / (2.0 * sigma**2))
-        wt = wt / np.sum(wt)
-        timeseries_subset = np.append(timeseries_subset, np.transpose([wt]), axis=1)
-        for t in timeseries_subset:
-            print(f"{t[0]:.6f} {t[1]:.3e} {t[2]:.2e} {t[3]:.4e}")
-        data_subset[cnt] = timeseries_subset
-        cnt += 1
-
-        timeseries_smooth_loc = np.array([new_time])
-        for ifun in range(1, nfun):
-            timeseries_smooth_loc = np.append(
-                timeseries_smooth_loc, np.sum(timeseries_subset[:, ifun] * wt)
-            )
-        print(
-            f"{timeseries_smooth_loc[0]:.6f} {timeseries_smooth_loc[1]:.3e} {timeseries_smooth_loc[2]:.2e}\n"
-        )
-
-        timeseries_smooth = np.append(timeseries_smooth, np.array([timeseries_smooth_loc]), axis=0)
-
-    return timeseries_smooth, data_subset
-
-
-# custom made function regress_0intercept takes vectors x and y
-# representing coordinates and function values at these coordinates
-# and returns slope of regression fit y = a*x
-# along with coefficient of determination
-def regress_0intercept(x, y):
-    success = False
-
-    if len(x) != len(y):
-        a = 0.0
-        R2 = 0.0
-
-    elif len(x) == 1:
-        if x[0] != 0.0:
-            a = y[0] / x[0]
-            R2 = 1.0
-            success = True
-        else:
-            if y[0] != 0.0:
-                a = np.inf
-                R2 = 1.0
-                success = True
-            else:
-                a = np.inf
-                R2 = 0.0
-
-    else:
-        xy_sum = np.dot(x, y)
-        x2_sum = np.dot(x, x)
-        a = xy_sum / x2_sum
-
-        res_y = y - a * x
-        res_sum_2 = np.dot(res_y, res_y)
-        y2_sum = np.dot(y, y)
-        sum_tot_2 = y2_sum - len(y) * np.mean(y) ** 2
-        R2 = 1.0 - res_sum_2 / sum_tot_2
-
-        success = True
-
-    return success, a, R2
 
 
 def main():
@@ -620,27 +514,9 @@ def main():
         print("program terminated")
         sys.exit()
 
-    granule_links = []
-    for result in POI_results:
-        granule_links.append(result["umm"]["RelatedUrls"][0]["URL"])
 
-    for granule_link in granule_links:
-        print(granule_link)
-
-    # Downloading TEMPO data files
     downloaded_files = earthaccess.download(POI_results, local_path=".")
 
-    # Checking whether all TEMPO data files have been downloaded
-    for granule_link in granule_links:
-        TEMPO_fname = granule_link.split("/")[-1]
-        # check if file exists in the local directory
-        if not os.path.exists(TEMPO_fname):
-            print(TEMPO_fname, "does not exist in local directory")
-            # repeat attempt to download
-            downloaded_files = earthaccess.download(granule_link, local_path=".")
-            # if file still does not exist in the directory, remove its link from the list of links
-            if not os.path.exists(TEMPO_fname):
-                granule_links.remove(granule_link)
 
     # Important note
     # NO2 total column is calculated is a sum of stratospheric and tropospheric columns.
@@ -698,11 +574,7 @@ def main():
     )
     fout_noneg.write("yyyy mm dd hh mn ss " + out_Q_unit + "\n")
 
-    for granule_link in granule_links:
-        last_slash_ind = granule_link.rfind("/")
-        fname = granule_link[last_slash_ind + 1:]
-        print("\n", fname)
-
+    for file in downloaded_files:
         (
             lat,
             lon,
@@ -717,7 +589,14 @@ def main():
             prod_unit,
             QF,
             fv_QF,
-        ) = read_TEMPO_NO2_L2(fname)
+        ) = read_TEMPO_NO2_L2(file)
+
+        print("lat and lon: ", lat, lon)
+        print("time: ", time)
+        print("strat_NO2_column: ", strat_NO2_column)
+        print("trop_NO2_column: ", trop_NO2_column)
+        print("trop_NO2_column_unc: ", trop_NO2_column_unc)
+
 
         if isinstance(lat, float):
             continue
@@ -731,13 +610,13 @@ def main():
         ny = lon.shape[1]
 
         # getting time from the granule filename
-        Tind = fname.rfind("T")
-        yyyy = int(fname[Tind - 8: Tind - 4])
-        mm = int(fname[Tind - 4: Tind - 2])
-        dd = int(fname[Tind - 2: Tind])
-        hh = int(fname[Tind + 1: Tind + 3])
-        mn = int(fname[Tind + 3: Tind + 5])
-        ss = float(fname[Tind + 5: Tind + 7])
+        Tind = file.rfind("T")
+        yyyy = int(file[Tind - 8: Tind - 4])
+        mm = int(file[Tind - 4: Tind - 2])
+        dd = int(file[Tind - 2: Tind])
+        hh = int(file[Tind + 1: Tind + 3])
+        mn = int(file[Tind + 3: Tind + 5])
+        ss = float(file[Tind + 5: Tind + 7])
 
         pp = np.array([POI[1], POI[0]])
         p = Point(pp)  # POI[0] - latitudes, POI[1] - longitudes
@@ -945,6 +824,7 @@ def main():
 
             if POI_found:
                 break
+
 
     fout_noFV.close()
     fout_noneg.close()
