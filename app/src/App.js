@@ -1,9 +1,8 @@
 import logo from './logo.svg';
 import './App.css';
 import { MapContainer, TileLayer, Popup, Marker, useMap} from 'react-leaflet'
-import 'leaflet/dist/leaflet.css'
-
-
+import 'leaflet/dist/leaflet.css';
+import 'leaflet.heat';
 
 function App() {
   return (
