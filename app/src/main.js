@@ -9,19 +9,25 @@ function getHeatPointsArray (pointsJson) {
     var point = [obj.lat, obj.long, intensity];
     points.push(point)
   })
-  console.log(points)
   return points
 }
 
 function getHeatMapLayer(pointsJson) {
   var points = getHeatPointsArray(pointsJson);
-  var heat = L.heatLayer(points, {radius: 30})
+  var heat = L.heatLayer(points, {radius: 100})
   return heat
 }
 
 function getSanFranMap() {
   return L.map('map').setView([51.505, -0.09], 13);
+}
 
+function addCigMarkersToMap(jsonData, map) {
+  jsonData.data.forEach(obj => {
+    L.marker(obj.point)
+      .addTo(map)
+      .bindPopup(`Breathing the air in this location for ${obj.hrsPerCig} hours is the equivalent of smoking one cigarette!`)
+  })
 }
 
 var map = getSanFranMap();
@@ -30,6 +36,11 @@ L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 19,
   attribution: '&copy; OpenStreetMap'
 }).addTo(map);
+
+var dummyCig = {"data": [
+  {"point": [51.50515, -0.09], "hrsPerCig": 23},
+  {"point": [51.51, -0.09], "hrsPerCig": 20}
+]};
 
 var dummy = { "data": [
   { "lat": 51.505,   "long": -0.09,    "AQI": 250 },
@@ -56,25 +67,4 @@ var dummy = { "data": [
 
 var heat = getHeatMapLayer(dummy).addTo(map)
 
-/* var heat = L.heatLayer([
-  [51.505, -0.09, 0.5],
-  [51.506, -0.091, 0.6],
-  [51.504, -0.089, 0.4],
-  [51.5055, -0.092, 0.7],
-  [51.5045, -0.088, 0.3],
-  [51.5052, -0.0915, 0.8],
-  [51.5048, -0.0885, 0.5],
-  [51.5051, -0.0905, 0.6],
-  [51.5053, -0.0895, 0.7],
-  [51.5047, -0.0902, 0.4],
-  [51.5056, -0.0898, 0.9],
-  [51.5044, -0.0906, 0.5],
-  [51.5054, -0.0912, 0.6],
-  [51.5046, -0.0893, 0.7],
-  [51.505, -0.0908, 0.8],
-  [51.5052, -0.0901, 0.9],
-  [51.5049, -0.0897, 0.6],
-  [51.5053, -0.0903, 0.7],
-  [51.5048, -0.0904, 0.8],
-  [51.5051, -0.0899, 0.9]
-], {radius: 25}).addTo(map); */
+addCigMarkersToMap(dummyCig, map)
