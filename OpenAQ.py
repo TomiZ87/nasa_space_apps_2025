@@ -1,4 +1,6 @@
 import requests
+import os
+from dotenv import load_dotenv
 
 
 def get_nearby_locations(lat: float, lon: float, api_key: str, radius: int = 10000, limit: int = 5):
@@ -112,6 +114,8 @@ def get_air_quality(lat: float, lon: float, api_key: str):
         print()
 
 if __name__ == "__main__":
-    YOUR_API_KEY = ""
+    load_dotenv()  # loads .env into environment
+
+    YOUR_API_KEY = os.getenv("OPENAQ_KEY")
     lat, lon = 37.7749, -122.4194
     get_air_quality(lat, lon, YOUR_API_KEY)
