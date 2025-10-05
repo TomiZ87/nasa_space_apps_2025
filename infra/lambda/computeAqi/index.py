@@ -23,13 +23,13 @@ def handler(event, context):
                 cigs_per_day = pm25 / 22
                 if cigs_per_day > 0:
                     hrs_per_cig = 24 / cigs_per_day
-            elif aqi is not None:
+            elif aqi is not None and aqi > 0:  # Exclude AQI == 0
                 pm25_est = (aqi / 100) * 35
                 cigs_per_day = pm25_est / 22
                 if cigs_per_day > 0:
                     hrs_per_cig = 24 / cigs_per_day
 
-            # Save for averaging
+            # Save for averaging only if hrs_per_cig was calculated
             if hrs_per_cig is not None:
                 hrs_values.append(hrs_per_cig)
 
@@ -43,7 +43,7 @@ def handler(event, context):
     # Calculate average hrsPerCig across all stations
     poi_hrs_per_cig = None
     if hrs_values:
-        poi_hrs_per_cig = sum(hrs_values) / len(hrs_values)
+        poi_hrs_per_cig = round(sum(hrs_values) / len(hrs_values), 1)  # Round to 1 decimal
 
     res = {
         "poi": poi,
