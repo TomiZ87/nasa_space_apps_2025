@@ -1,5 +1,21 @@
 function standardizeAQI(AQI) {
-  return AQI / 500
+  if (AQI <= 50) {
+    intensity = 0.1
+  }
+  else if (AQI <= 100) {
+    intensity = 0.2
+  }
+  else if (AQI <= 150) {
+    intensity = 0.3
+  }
+  else if (AQI <= 200) {
+    intensity = 0.4
+  }
+  else if (AQI <= 300) {
+    intensity = 0.6
+  }
+  else {intensity = 0.8}
+  return intensity
 }
 
 function getHeatPointsArray (pointsJson) {
