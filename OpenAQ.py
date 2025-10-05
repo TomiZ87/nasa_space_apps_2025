@@ -107,45 +107,69 @@ def calculateAQI(concentration, pollutant):
 def get_air_quality(lat: float, lon: float, api_key: str):
     locations = get_nearby_locations(lat, lon, api_key)
 
+    #Dictionary of locations with their info
+    locations_dic = {}
+
     if locations == None:
         print("No nearby monitoring stations found.")
         return
 
     for loc in locations:
+        
         loc_id = loc["id"]
         loc_AQI = 0
+        locations_dic[loc_id]={}
+
         loc_name = loc.get("name", "Unnamed")
         print(f"Station {loc_id}: {loc_name}")
+
+        #Get the latest data for the station
         latest = get_latest_data(loc_id, api_key)
-        for entry in latest:
-            sensors_id = entry.get("sensorsId", []) # Get the sensor id to request the data from a specific sensor
-            latest_value = entry.get("value", None) # Get the value of a specific sensor from the request "latest_data"
+
+        #Iterate through sensors
+        for sensor in latest:
+            sensors_id = sensor.get("sensorsId", []) # Get the sensor id to request the data from a specific sensor
+            latest_value = sensor.get("value", None) # Get the value of a specific sensor from the request "latest_data"
 
             sensor_data = get_sensor_data(sensors_id, api_key)
+            sensor_value = sensor_data["value"]
+
+            station = locations_dic[loc_id]
+            station.update({'location': sensor_data["location"]})
 
             # for sanity check - check if the sensors_id and the data value in lastest request match with sensors request
-            if sensor_data != None and latest_value == sensor_data["value"]:
-                sensor_value = sensor_data["value"]
+            if sensor_data != None and latest_value == sensor_value:
+
+                #Fixing the pollutant concentration level
                 if sensor_data["pollutant_info"]["units"] == "ppm":
                     sensor_value = sensor_value * 1000
+
+
+                if sensor_data["pollutant_info"]["name"] == "pm25":
+                    station.update({'pm2.5': sensor_value})
 
                 currentAQI = calculateAQI(sensor_value, sensor_data["pollutant_info"]["name"])
                 print("This is the hourly updated real-time data:", sensor_data)
                 print("This is the current AQI:", currentAQI)
 
+                # Logic to find the highest AQI for the station
                 if currentAQI != None and currentAQI > loc_AQI:
                     loc_AQI = currentAQI
+                
+            station.update({'AQI': loc_AQI})  
 
-    return (sensor_data["location"], loc_AQI)
+
+    return locations_dic
 
 
 def main():
     load_dotenv() # loads .env into environment
     YOUR_API_KEY = os.getenv("OPENAQ_KEY")
     lat, lon = 37.7749, -122.4194
-    loc, AQI = get_air_quality(lat, lon, YOUR_API_KEY) # THIS ONLY RETURNS THE LAST ONE
-    print(loc)
-    print(AQI)
+    dictionary = get_air_quality(lat, lon, YOUR_API_KEY) # THIS ONLY RETURNS THE LAST ONE
+    dictionary["POI_coordinate"] = {"lat": lat, "lon": lon}
+    
+    print(dictionary)
 
 if __name__ == "__main__":
     main()
