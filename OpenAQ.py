@@ -2,9 +2,8 @@ import requests
 import os
 from dotenv import load_dotenv
 
-
-# Get a list of nearby locations (weather stations)
-def get_nearby_locations(lat: float, lon: float, api_key: str, radius: int = 10000, limit: int = 5):
+# Get a list of nearby stations (weather stations)
+def get_nearby_stations(lat: float, lon: float, api_key: str, radius: int = 10000, limit: int = 5):
     url = "https://api.openaq.org/v3/locations"
     params = {
         "coordinates": f"{lat},{lon}",
@@ -20,9 +19,9 @@ def get_nearby_locations(lat: float, lon: float, api_key: str, radius: int = 100
     return locations
 
 
-# Query the lastest data from a location
-def get_latest_data(location_id: int, api_key: str):
-    url = f"https://api.openaq.org/v3/locations/{location_id}/latest"
+# Query the lastest data from a station (location)
+def get_latest_data(station_id: int, api_key: str):
+    url = f"https://api.openaq.org/v3/locations/{station_id}/latest"
     headers = {
         "X-API-Key": api_key
     }
@@ -61,8 +60,9 @@ def get_sensor_data(sensor_id: int, api_key: str):
     return category
 
 
-# Function to calculate the AQI for a pollutant
+# Function to calculate the AQI for one pollutant
 def calculateAQI(concentration, pollutant):
+
     # Dictionary of breakpoints for each pollutant
     BREAKPOINTS = {
         "pm25": [
@@ -99,76 +99,84 @@ def calculateAQI(concentration, pollutant):
             if C_lo <= concentration <= C_hi:
                 # Calculate the AQI for the pollutant
                 I = (I_hi - I_lo) / (C_hi - C_lo) * (concentration - C_lo) + I_lo
+                
+                # Return the final index
                 return int(round(I))
     else:
         return None
 
 
 def get_air_quality(lat: float, lon: float, api_key: str):
-    locations = get_nearby_locations(lat, lon, api_key)
+    
+    # Get all of the stations in the area
+    stations = get_nearby_stations(lat, lon, api_key)
 
-    #Dictionary of locations with their info
-    locations_dic = {}
+    # Dictionary of stations with their info (Lat, lon, AQI, PM25)
+    stations_dictionary = {}
 
-    if locations == None:
+    # Handle cases where there are no stations around
+    if stations == None:
         print("No nearby monitoring stations found.")
         return
 
-    for loc in locations:
+    # Iterate through the stations
+    print("Iterating through the stations")
+
+    for station in stations:
         
-        loc_id = loc["id"]
-        loc_AQI = 0
-        locations_dic[loc_id]={}
+        # Save station data for future use
+        station_id = station["id"]
+        station_AQI = 0
+        stations_dictionary[station_id]={}
 
-        loc_name = loc.get("name", "Unnamed")
-        print(f"Station {loc_id}: {loc_name}")
+        # Get the latest data for the station
+        latest = get_latest_data(station_id, api_key)
 
-        #Get the latest data for the station
-        latest = get_latest_data(loc_id, api_key)
+        # Iterate through sensors
+        print("Iterating through the sensors")
 
-        #Iterate through sensors
         for sensor in latest:
-            sensors_id = sensor.get("sensorsId", []) # Get the sensor id to request the data from a specific sensor
-            latest_value = sensor.get("value", None) # Get the value of a specific sensor from the request "latest_data"
+            sensors_id = sensor.get("sensorsId", [])                # Get the sensor id to request the data from a specific sensor
+            latest_value = sensor.get("value", None)                # Get the value of a specific sensor from the request "latest_data"
 
-            sensor_data = get_sensor_data(sensors_id, api_key)
-            sensor_value = sensor_data["value"]
+            sensor_data = get_sensor_data(sensors_id, api_key)      # Get the sensor data through another path
+            sensor_value = sensor_data["value"]                     # Get the sensor value 
 
-            station = locations_dic[loc_id]
-            station.update({'location': sensor_data["location"]})
+            station = stations_dictionary[station_id]               # Get the current station in the dictionary
+            station.update({'location': sensor_data["location"]})   # Add the station location to the dictionary
 
-            # for sanity check - check if the sensors_id and the data value in lastest request match with sensors request
+            # Sanity check - check if the sensors_id and the data value in lastest request match with sensors request
             if sensor_data != None and latest_value == sensor_value:
 
-                #Fixing the pollutant concentration level
+                # Fixing the pollutant concentration level (i.e., changing from ppm to ppb )
                 if sensor_data["pollutant_info"]["units"] == "ppm":
                     sensor_value = sensor_value * 1000
 
-
+                # Find pm2.5 poluttants and save their values for future cigarette calculation
                 if sensor_data["pollutant_info"]["name"] == "pm25":
                     station.update({'pm2.5': sensor_value})
 
+                print("Calculating the AQI")
                 currentAQI = calculateAQI(sensor_value, sensor_data["pollutant_info"]["name"])
-                print("This is the hourly updated real-time data:", sensor_data)
-                print("This is the current AQI:", currentAQI)
 
                 # Logic to find the highest AQI for the station
-                if currentAQI != None and currentAQI > loc_AQI:
-                    loc_AQI = currentAQI
-                
-            station.update({'AQI': loc_AQI})  
+                if currentAQI != None and currentAQI > station_AQI:
+                    station_AQI = currentAQI
 
+            # Update the station dictionary and add the AQI info    
+            station.update({'AQI': station_AQI})  
 
-    return locations_dic
+    # Return all of the collected data from the station
+    return stations_dictionary
 
 
 def main():
-    load_dotenv() # loads .env into environment
-    YOUR_API_KEY = os.getenv("OPENAQ_KEY")
-    lat, lon = 37.7749, -122.4194
-    dictionary = get_air_quality(lat, lon, YOUR_API_KEY) # THIS ONLY RETURNS THE LAST ONE
-    dictionary["POI_coordinate"] = {"lat": lat, "lon": lon}
-    
+    load_dotenv()                                           # loads .env into environment
+    YOUR_API_KEY = os.getenv("OPENAQ_KEY")                  # Save the api key
+    lat, lon = 37.7749, -122.4194                           # Define lat and lon (TODO: change so it's not hard coded)
+    dictionary = get_air_quality(lat, lon, YOUR_API_KEY)    # Retrieve all data for the POI (point of interest)
+    dictionary["POI_coordinate"] = {"lat": lat, "lon": lon} # Add the POI to the collected data
+
     print(dictionary)
 
 if __name__ == "__main__":
