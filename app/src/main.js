@@ -1,80 +1,125 @@
+async function fetchData(){
+    try{
+        console.log("B");
+        const response = await fetch("https://18sj5l5uq2.execute-api.eu-north-1.amazonaws.com/airQuality")
+        let data = await response.json()
+  
+        if(!response.ok){
+            throw new Error("Failed to fetch data");
+        }
+        console.log(data)
+        return data
+    }
+    catch(error){
+        console.error(error);
+    }
+}
+
+function success(position){
+    //doSomething(position.coords.latitude, position.coords.longitude);
+    const latitude = position.coords.latitude;
+    const longitude = position.coords.longitude;
+    console.log(latitude, "\n", longitude);
+    zoomTo(position)
+}
+
+function error(){
+    alert("Sorry, no position available.");
+}
+
+function getPosition(){
+    if (!navigator.geolocation) {
+        status.textContent = "Geolocation is not supported by your browser";
+    } else {
+        status.textContent = "Locating…";
+        navigator.geolocation.getCurrentPosition(success, error);
+    }
+}
+
+function zoomTo(position){
+    const latitude = position.coords.latitude;
+    const longitude = position.coords.longitude;
+    map.panTo(new L.LatLng(latitude, longitude));
+}
+
 function standardizeAQI(AQI) {
-  return AQI / 500
+  if (AQI <= 50) {
+    intensity = 0.2
+  }
+  else if (AQI <= 100) {
+    intensity = 0.4
+  }
+  else if (AQI <= 150) {
+    intensity = 0.5
+  }
+  else if (AQI <= 200) {
+    intensity = 0.65
+  }
+  else if (AQI <= 300) {
+    intensity = 0.85
+  }
+  else {intensity = 0.95}
+  return intensity
 }
 
 function getHeatPointsArray (pointsJson) {
   var points = []
   pointsJson.data.forEach( obj => {
-    var intensity = standardizeAQI(obj.AQI);
-    var point = [obj.lat, obj.long, intensity];
-    points.push(point)
+    obj.stationsData.forEach( ob => {
+      var intensity = standardizeAQI(ob.AQI);
+      var point = [ob.lat, ob.long, intensity];
+      points.push(point)
+    })
   })
-  console.log(points)
   return points
 }
 
 function getHeatMapLayer(pointsJson) {
   var points = getHeatPointsArray(pointsJson);
-  var heat = L.heatLayer(points, {radius: 30})
+  var heat = L.heatLayer(points, {radius: 200})
   return heat
 }
 
 function getSanFranMap() {
-  return L.map('map').setView([51.505, -0.09], 13);
-
+  return L.map('map').setView([28.61, 77.23], 13);
 }
 
-var map = getSanFranMap();
+function addCigMarkersToMap(jsonData, map) {
+  jsonData.data.forEach(obj => {
+    L.marker([obj.poi.lat, obj.poi.long])
+      .addTo(map)
+      .bindPopup(`Breathing the air in this location for ${obj.hrsPerCig} hours is the equivalent of smoking one cigarette!`)
+  })
+}
 
-L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  maxZoom: 19,
-  attribution: '&copy; OpenStreetMap'
-}).addTo(map);
+function openLegend() {
+  document.getElementById("legend").style.display = "flex";
+}
 
-var dummy = { "data": [
-  { "lat": 51.505,   "long": -0.09,    "AQI": 250 },
-  { "lat": 51.506,   "long": -0.091,   "AQI": 300 },
-  { "lat": 51.504,   "long": -0.089,   "AQI": 200 },
-  { "lat": 51.5055,  "long": -0.092,   "AQI": 350 },
-  { "lat": 51.5045,  "long": -0.088,   "AQI": 150 },
-  { "lat": 51.5052,  "long": -0.0915,  "AQI": 400 },
-  { "lat": 51.5048,  "long": -0.0885,  "AQI": 250 },
-  { "lat": 51.5051,  "long": -0.0905,  "AQI": 300 },
-  { "lat": 51.5053,  "long": -0.0895,  "AQI": 350 },
-  { "lat": 51.5047,  "long": -0.0902,  "AQI": 200 },
-  { "lat": 51.5056,  "long": -0.0898,  "AQI": 450 },
-  { "lat": 51.5044,  "long": -0.0906,  "AQI": 250 },
-  { "lat": 51.5054,  "long": -0.0912,  "AQI": 300 },
-  { "lat": 51.5046,  "long": -0.0893,  "AQI": 350 },
-  { "lat": 51.505,   "long": -0.0908,  "AQI": 400 },
-  { "lat": 51.5052,  "long": -0.0901,  "AQI": 450 },
-  { "lat": 51.5049,  "long": -0.0897,  "AQI": 300 },
-  { "lat": 51.5053,  "long": -0.0903,  "AQI": 350 },
-  { "lat": 51.5048,  "long": -0.0904,  "AQI": 400 },
-  { "lat": 51.5051,  "long": -0.0899,  "AQI": 450 }
-]};
+function closeLegend() {
+  document.getElementById("legend").style.display = "none";
+}
 
-var heat = getHeatMapLayer(dummy).addTo(map)
 
-/* var heat = L.heatLayer([
-  [51.505, -0.09, 0.5],
-  [51.506, -0.091, 0.6],
-  [51.504, -0.089, 0.4],
-  [51.5055, -0.092, 0.7],
-  [51.5045, -0.088, 0.3],
-  [51.5052, -0.0915, 0.8],
-  [51.5048, -0.0885, 0.5],
-  [51.5051, -0.0905, 0.6],
-  [51.5053, -0.0895, 0.7],
-  [51.5047, -0.0902, 0.4],
-  [51.5056, -0.0898, 0.9],
-  [51.5044, -0.0906, 0.5],
-  [51.5054, -0.0912, 0.6],
-  [51.5046, -0.0893, 0.7],
-  [51.505, -0.0908, 0.8],
-  [51.5052, -0.0901, 0.9],
-  [51.5049, -0.0897, 0.6],
-  [51.5053, -0.0903, 0.7],
-  [51.5048, -0.0904, 0.8],
-  [51.5051, -0.0899, 0.9]
-], {radius: 25}).addTo(map); */
+async function main() {
+  let data = await fetchData();
+
+  var map = getSanFranMap();
+
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; OpenStreetMap'
+  }).addTo(map);
+
+  var dummyCig = {"data": [
+    {"point": [51.50515, -0.09], "hrsPerCig": 23},
+    {"point": [51.51, -0.09], "hrsPerCig": 20}
+  ]};
+
+  var heat = getHeatMapLayer(data).addTo(map)
+
+  addCigMarkersToMap(data, map)
+}
+
+main()
+
