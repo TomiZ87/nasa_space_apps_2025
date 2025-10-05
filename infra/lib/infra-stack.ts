@@ -20,7 +20,7 @@ export class InfraStack extends cdk.Stack {
 
     const airQualityTable = new dynamodb.Table(this, 'AirQualityTable', {
       partitionKey: {
-        name: 'date',
+        name: 'poiId',
         type: dynamodb.AttributeType.STRING,
       },
       sortKey: {
@@ -40,6 +40,10 @@ export class InfraStack extends cdk.Stack {
       runtime: lambda.Runtime.PYTHON_3_12,
       handler: 'index.handler',
       code: lambda.Code.fromAsset('./lambda/queryTempoAndPandora'),
+      environment: {
+        OPENAQ_KEY: process.env.OPENAQ_KEY || '',
+      },
+      timeout: cdk.Duration.minutes(10),
     });
     
     const computeAqi = new lambda.Function(this, "ComputeAqi", {
@@ -125,7 +129,7 @@ export class InfraStack extends cdk.Stack {
 
     const cronJob = new scheduler.Schedule(this, "CronJob", {
       schedule: scheduler.ScheduleExpression.cron({
-        minute: '0,30',
+        minute: '15',
         hour:   '*',
         day:    '*',
         month:  '*',
