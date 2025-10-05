@@ -1,3 +1,49 @@
+
+
+async function fetchData(){
+    try{
+        const response = await fetch("http://localhost:8080/data");
+        if(!response.ok){
+            throw new Error("Failed to fetch data");
+        }
+
+        const data = await response.json();
+        console.log(data);
+
+    }
+    catch(error){
+        console.error(error);
+
+    }
+}
+function success(position){
+    //doSomething(position.coords.latitude, position.coords.longitude);
+    const latitude = position.coords.latitude;
+    const longitude = position.coords.longitude;
+    console.log(latitude, "\n", longitude);
+    zoomTo(position)
+}
+
+function error(){
+    alert("Sorry, no position available.");
+}
+
+
+function getPosition(){
+    if (!navigator.geolocation) {
+        status.textContent = "Geolocation is not supported by your browser";
+    } else {
+        status.textContent = "Locating…";
+        navigator.geolocation.getCurrentPosition(success, error);
+    }
+}
+
+function zoomTo(position){
+    const latitude = position.coords.latitude;
+    const longitude = position.coords.longitude;
+    map.panTo(new L.LatLng(latitude, longitude));
+}
+
 function standardizeAQI(AQI) {
   if (AQI <= 50) {
     intensity = 0.1
