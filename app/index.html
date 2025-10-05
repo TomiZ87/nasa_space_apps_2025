@@ -6,20 +6,21 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script src="leaflet-heat.js"></script>
     <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
-    <style>
-        #map {position: absolute; top: 0; bottom: 0; left: 0; right: 0; width: 50%;}
-        #find-me {position: absolute; margin-left: 850px; top: 100px; }
-    </style>
+    <link rel="stylesheet" href="public/style.css"/>
 
 </head>
 <body>
-<button id="find-me" onclick="getPosition()">Show my location</button><br />
-
-
-
-     <div id="map"></div>
-<script src="src/main.js"></script>
-
-
+  <div id="legend">
+    <img src="public/legend.png"></img>
+    <button id="close-legend" onclick="closeLegend()">X</button>
+  </div>
+  <div id="main-container">
+    <div id="sidebar">
+      <button id="find-me" onclick="getPosition()">Show my location</button>
+      <button id="legend-button" onclick="openLegend()">View Legend</button>
+    </div>
+    <div id="map"></div>
+  </div>
+  <script src="src/main.js"></script>
 </body>
 </html>
