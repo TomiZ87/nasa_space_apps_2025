@@ -15,7 +15,7 @@ def main():
         short_name=short_name,
         version=version,
         provider="LARC_CLOUD",  # this is needed only temporary, while there are still non-LARC_CLOUD versions of these granules.
-        temporal=("2024-09", "2024-10"),
+        temporal=("2024-01", "2024-01"),
     )
 
     downloaded_files = earthaccess.download(results, local_path=".")
@@ -38,12 +38,10 @@ def main():
 
             # Turn the -9999.0 into a NaN
             masked_data = np.ma.masked_where(data <= 0, data)
-            CO_mixing_ratio = data.copy()
-            CO_mixing_ratio[masked_data <= 0] = np.nan
 
             arrays["lon"].append(lon)
             arrays["lat"].append(lat)
-            arrays["CO_mixing_ratio"].append(CO_mixing_ratio)
+            arrays["CO_mixing_ratio"].append(masked_data)
 
     print(arrays)
 
