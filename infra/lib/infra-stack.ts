@@ -125,7 +125,7 @@ export class InfraStack extends cdk.Stack {
 
     const cronJob = new scheduler.Schedule(this, "CronJob", {
       schedule: scheduler.ScheduleExpression.cron({
-        minute: '0,30',
+        minute: '15',
         hour:   '*',
         day:    '*',
         month:  '*',
